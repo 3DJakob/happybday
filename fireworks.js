@@ -1,11 +1,11 @@
-window.requestAnimFrame = function () {
+window.requestAnimFrame = (function () {
   return window.requestAnimationFrame ||
   window.webkitRequestAnimationFrame ||
   window.mozRequestAnimationFrame ||
   function (callback) {
     window.setTimeout(callback, 1000 / 60)
   }
-}
+})()
 
 var canvas = document.getElementById('canvas')
 var ctx = canvas.getContext('2d')
@@ -19,7 +19,7 @@ var hue = 120
 
 var limiterTotal = 5
 var limiterTick = 0
-var timerTotal = 5
+var timerTotal = 80
 var timerTick = 0
 
 var mouseDown = false
@@ -71,35 +71,104 @@ function Firework (sx, sy, tx, ty) {
 }
 
 Firework.prototype.update = function (index) {
+  this.coordinates.pop()
+  this.coordinates.unshift([this.x, this.y])
 
+  if (this.targetRadius < 8) {
+    this.targetRadius += 0.3
+  } else {
+    this.targetRadius = 1
+  }
+  this.speed *= this.acceleration
+  var vx = Math.cos(this.angle) * this.speed
+  var vy = Math.sin(this.angle) * this.speed
+  this.distanceTraveled = calculateDistance(this.sx, this.sy, this.x + vx, this.y + vy)
+  if (this.distanceTraveled >= this.distanceToTarget) {
+    createParticles(this.tx, this.ty)
+    fireworks.splice(index, 1)
+  } else {
+    this.x += vx
+    this.y += vy
+  }
 }
 
 Firework.prototype.draw = function () {
+  ctx.beginPath()
+  ctx.moveTo(this.coordinates[this.coordinates.length - 1][0], this.coordinates[this.coordinates.length - 1][1])
+  ctx.lineTo(this.x, this.y)
+  ctx.strokeStyle = 'hsl(' + hue + ', 100%, ' + this.brightness + '%)'
+  ctx.stroke()
 
+  ctx.beginPath()
+
+  ctx.arc(this.tx, this.ty, this.targetRadius, 0, Math.PI * 2)
+  ctx.stroke()
 }
 //  create particle
 function Particle (x, y) {
-
+  this.x = x
+  this.y = y
+  this.coordinates = []
+  this.coordinateCount = 5
+  while (this.coordinateCount--) {
+    this.coordinates.push([this.x, this.y])
+  }
+  this.angle = random(0, Math.PI * 2)
+  this.speed = random(1, 10)
+  this.friction = 0.95
+  this.gravity = 1
+  this.hue = random(hue - 20, hue + 20)
+  this.brightness = random(50, 80)
+  this.alpha = 1
+  this.decay = random(0.015, 0.03)
 }
 
 Particle.prototype.update = function (index) {
+  this.coordinates.pop()
+  this.coordinates.unshift([this.x, this.y])
+  this.speed *= this.friction
 
+  this.x += Math.cos(this.angle) * this.speed
+  this.y += Math.sin(this.angle) * this.speed + this.gravity
+  this.alpha -= this.decay
+
+  if (this.alpha <= this.decay) {
+    particles.splice(index, 1)
+  }
 }
 
-Particle.prototype.draw = function() {
-
+Particle.prototype.draw = function () {
+  ctx.beginPath()
+  ctx.moveTo(this.coordinates[ this.coordinates.length - 1 ][ 0 ], this.coordinates[ this.coordinates.length - 1 ][ 1 ])
+  ctx.lineTo(this.x, this.y)
+  ctx.strokeStyle = 'hsla(' + this.hue + ', 100%, ' + this.brightness + '%, ' + this.alpha + ')'
+  ctx.stroke()
 }
 
 //  create particle explosion
 function createParticles (x, y) {
-
+  var particleCount = 30
+  while (particleCount--) {
+    particles.push(new Particle(x, y))
+  }
 }
 
-function loop() {
-  requestAnimFrame(loop)
+function loop () {
+  window.requestAnimFrame(loop)
+  hue += 0.5
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+  ctx.fillRect(0, 0, cw, ch)
+  ctx.globalCompositeOperation = 'lighter'
 
   //  Draw fireworks
   var i = fireworks.length
+  while (i--) {
+    fireworks[i].draw()
+    fireworks[i].update(i)
+  }
+
+  var i = particles.length
   while (i--) {
     particles[i].draw()
     particles[i].update(i)
@@ -107,22 +176,38 @@ function loop() {
 
   //  Launch automatic
   if (timerTick >= timerTotal) {
-    if (!mousedown) {
-      // TARGETING HERE!
+    if (!mouseDown) {
+      fireworks.push(new Firework(
+        cw / 2, ch, random(0, cw), random(0, ch / 2)
+      ))
+      timerTick = 0
     }
+  } else {
+    timerTick++
+  }
+  if (limiterTick >= limiterTotal) {
+    if (mouseDown) {
+      fireworks.push(new Firework(cw / 2, ch, mx, my))
+      limiterTick = 0
+    }
+  } else {
+    limiterTick++
   }
 }
 
-canvas.addEventListener('mousemove', function(e){
-
+canvas.addEventListener('mousemove', function (e) {
+  mx = e.pageX - canvas.offsetLeft
+  my = e.pageY - canvas.offsetTop
 })
 
-canvas.addEventListener('mousedown', function(e) {
-
+canvas.addEventListener('mousedown', function (e) {
+  e.preventDefault()
+  mouseDown = true
 })
 
-canvas.addEventListener('mouseup', function(e) {
-
+canvas.addEventListener('mouseup', function (e) {
+  e.preventDefault()
+  mouseDown = false
 })
 
 window.onload = loop
