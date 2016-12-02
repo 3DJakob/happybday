@@ -7,3 +7,30 @@ canvas {
   cursor: crosshair;
   display: block;
 }
+
+div {
+  font-family: 'Alegreya Sans', sans-serif;
+  font-weight: 100;
+  color: #fff;
+  position: absolute;
+  overflow:visible;
+  height: 0;
+  width: 100vw;
+  text-align: center;
+  /*line-height: 100vh;*/
+  margin: 35vh 0;
+
+  user-select: none;
+  -moz-user-select: none;
+  -khtml-user-select: none;
+  -webkit-user-select: none;
+  -o-user-select: none;
+}
+
+h1 {
+  font-size: 40pt;
+}
+
+i {
+  color: #fff;
+}
